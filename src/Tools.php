@@ -554,6 +554,65 @@ class Tools extends ToolsBase
     }
 
     /**
+     * Consulta as informações dos boletos no NFHub
+     */
+    public function consultaResumoDosBoletos(int $company_id, string $date_start, string $date_end, array $params = []): array
+    {
+        if (empty($company_id)) {
+            throw new Exception("Não é possível consultar um boleto sem o ID da empresa", 1);
+        }
+
+        if (empty($date_start) || empty($date_end)) {
+            throw new Exception("Não é possível consultar os boletos sem o período de data inicial e final", 1);
+        }
+
+        try {
+            $params = array_filter($params, function($item) {
+                return $item['name'] !== 'company_id';
+            }, ARRAY_FILTER_USE_BOTH);
+
+            if (!empty($company_id)) {
+                $params[] = [
+                    'name' => 'company_id',
+                    'value' => $company_id
+                ];
+            }
+
+            $params[] = [
+                'name' => 'date_start',
+                'value' => $date_start
+            ];
+
+            $params[] = [
+                'name' => 'date_end',
+                'value' => $date_end
+            ];
+
+            $dados = $this->get('/plugboleto', $params);
+
+            if ($dados['httpCode'] == 200) {
+                return $dados;
+            }
+
+            if (isset($dados['body']->message)) {
+                throw new Exception($dados['body']->message, 1);
+            }
+
+            foreach ($dados['body']->errors as $key => $error) {
+                if (strpos($key, 'position') !== false) {
+                    $errors[] = implode('; ', $error);
+                } else {
+                    $errors[] = $error;
+                }
+            }
+
+            throw new Exception("\r\n".implode("\r\n", $errors), 1);
+        } catch (Exception $error) {
+            throw new Exception($error, 1);
+        }
+    }
+
+    /**
      * Atualiza um ou mais boletos existentes em lote
      */
     public function atualizaBoletos(int $company_id, array $dados, array $params = []): array
